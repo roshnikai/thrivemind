@@ -1,36 +1,39 @@
 import React, {
   createContext,
+  ReactNode,
   useContext,
   useReducer,
-  ReactNode,
 } from 'react';
 
-type Task = {
+export type Task = {
   id: string;
   title: string;
   completed: boolean;
 };
 
-type FocusSession = {
+export type CheckIn = {
   id: string;
-  duration: number;
+  mood: number;
+  energy: number;
+  createdAt: string;
+};
+
+export type FocusSession = {
+  id: string;
+  durationMinutes: number;
   completedAt: string;
 };
 
-type JournalEntry = {
+export type JournalEntry = {
   id: string;
   text: string;
   createdAt: string;
 };
 
-type AppState = {
-  mood: number | null;
-  energy: number | null;
-
+export type AppState = {
   tasks: Task[];
-
+  checkIns: CheckIn[];
   focusSessions: FocusSession[];
-
   journalEntries: JournalEntry[];
 
   preferences: {
@@ -42,14 +45,6 @@ type AppState = {
 
 type Action =
   | {
-      type: 'SET_MOOD';
-      payload: number;
-    }
-  | {
-      type: 'SET_ENERGY';
-      payload: number;
-    }
-  | {
       type: 'ADD_TASK';
       payload: string;
     }
@@ -58,7 +53,14 @@ type Action =
       payload: string;
     }
   | {
-      type: 'COMPLETE_FOCUS_SESSION';
+      type: 'ADD_CHECK_IN';
+      payload: {
+        mood: number;
+        energy: number;
+      };
+    }
+  | {
+      type: 'ADD_FOCUS_SESSION';
       payload: number;
     }
   | {
@@ -79,10 +81,6 @@ type Action =
     };
 
 const initialState: AppState = {
-  mood: null,
-
-  energy: null,
-
   tasks: [
     {
       id: '1',
@@ -95,6 +93,8 @@ const initialState: AppState = {
       completed: false,
     },
   ],
+
+  checkIns: [],
 
   focusSessions: [],
 
@@ -111,28 +111,12 @@ function appReducer(
   state: AppState,
   action: Action
 ): AppState {
-
   switch (action.type) {
-
-    case 'SET_MOOD':
-      return {
-        ...state,
-        mood: action.payload,
-      };
-
-    case 'SET_ENERGY':
-      return {
-        ...state,
-        energy: action.payload,
-      };
-
     case 'ADD_TASK':
       return {
         ...state,
-
         tasks: [
           ...state.tasks,
-
           {
             id: Date.now().toString(),
             title: action.payload,
@@ -144,8 +128,7 @@ function appReducer(
     case 'TOGGLE_TASK':
       return {
         ...state,
-
-        tasks: state.tasks.map(task =>
+        tasks: state.tasks.map((task) =>
           task.id === action.payload
             ? {
                 ...task,
@@ -155,16 +138,28 @@ function appReducer(
         ),
       };
 
-    case 'COMPLETE_FOCUS_SESSION':
+    case 'ADD_CHECK_IN':
       return {
         ...state,
-
-        focusSessions: [
-          ...state.focusSessions,
-
+        checkIns: [
+          ...state.checkIns,
           {
             id: Date.now().toString(),
-            duration: action.payload,
+            mood: action.payload.mood,
+            energy: action.payload.energy,
+            createdAt: new Date().toISOString(),
+          },
+        ],
+      };
+
+    case 'ADD_FOCUS_SESSION':
+      return {
+        ...state,
+        focusSessions: [
+          ...state.focusSessions,
+          {
+            id: Date.now().toString(),
+            durationMinutes: action.payload,
             completedAt: new Date().toISOString(),
           },
         ],
@@ -173,10 +168,8 @@ function appReducer(
     case 'ADD_JOURNAL_ENTRY':
       return {
         ...state,
-
         journalEntries: [
           ...state.journalEntries,
-
           {
             id: Date.now().toString(),
             text: action.payload,
@@ -188,7 +181,6 @@ function appReducer(
     case 'SET_INTERFACE_STYLE':
       return {
         ...state,
-
         preferences: {
           ...state.preferences,
           interfaceStyle: action.payload,
@@ -198,7 +190,6 @@ function appReducer(
     case 'SET_ANIMATIONS':
       return {
         ...state,
-
         preferences: {
           ...state.preferences,
           animations: action.payload,
@@ -208,7 +199,6 @@ function appReducer(
     case 'SET_SOUND':
       return {
         ...state,
-
         preferences: {
           ...state.preferences,
           sound: action.payload,
@@ -230,9 +220,10 @@ export function AppProvider({
 }: {
   children: ReactNode;
 }) {
-
-  const [state, dispatch] =
-    useReducer(appReducer, initialState);
+  const [state, dispatch] = useReducer(
+    appReducer,
+    initialState
+  );
 
   return (
     <AppContext.Provider value={{ state, dispatch }}>
@@ -242,7 +233,6 @@ export function AppProvider({
 }
 
 export function useApp() {
-
   const context = useContext(AppContext);
 
   if (!context) {

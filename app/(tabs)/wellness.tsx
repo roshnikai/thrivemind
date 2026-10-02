@@ -8,20 +8,37 @@ import {
   View,
 } from 'react-native';
 
-import { styles } from './styles';
 import { useApp } from '../context/AppContext';
 
-export default function WellnessScreen() {
+import { styles } from './styles';
 
-  const [journal, setJournal] = useState('');
-  const {dispatch} = useApp();
+export default function WellnessScreen() {
+  const { dispatch } = useApp();
+
+  const [journal, setJournal] =
+    useState('');
+
+  const saveJournalEntry = () => {
+    const trimmedJournal =
+      journal.trim();
+
+    if (!trimmedJournal) {
+      return;
+    }
+
+    dispatch({
+      type: 'ADD_JOURNAL_ENTRY',
+      payload: trimmedJournal,
+    });
+
+    setJournal('');
+  };
 
   return (
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.scrollContainer}
     >
-
       <Text style={styles.heading}>
         Wellness
       </Text>
@@ -33,7 +50,6 @@ export default function WellnessScreen() {
       {/* Journal */}
 
       <View style={styles.card}>
-
         <Text style={styles.subheading}>
           Journal
         </Text>
@@ -46,7 +62,7 @@ export default function WellnessScreen() {
           style={[
             styles.input,
             {
-              height: 120,
+              minHeight: 120,
               textAlignVertical: 'top',
             },
           ]}
@@ -59,58 +75,64 @@ export default function WellnessScreen() {
 
         <TouchableOpacity
           style={styles.button}
-          onPress={() =>
-            dispatch({
-              type: 'ADD_JOURNAL_ENTRY',
-              payload: journal,
-            })
-          }
+          onPress={saveJournalEntry}
         >
           <Text style={styles.buttonText}>
             Save Journal Entry
           </Text>
         </TouchableOpacity>
-
       </View>
 
-      {/* Wellness Tools */}
+      {/* Wellness tools */}
 
       <View style={styles.card}>
-
         <Text style={styles.subheading}>
           Wellness Tools
         </Text>
 
         <TouchableOpacity
           style={styles.secondaryButton}
+          onPress={() =>
+            console.log(
+              'Breathing exercise selected'
+            )
+          }
         >
           <Text style={styles.secondaryButtonText}>
-            🫁 Breathing Exercise
+            Breathing Exercise
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.secondaryButton}
+          onPress={() =>
+            console.log(
+              'Thought exercise selected'
+            )
+          }
         >
           <Text style={styles.secondaryButtonText}>
-            🧠 Thought Exercise
+            Thought Exercise
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.secondaryButton}
+          onPress={() =>
+            console.log(
+              'Grounding exercise selected'
+            )
+          }
         >
           <Text style={styles.secondaryButtonText}>
-            🌱 Grounding Exercise
+            Grounding Exercise
           </Text>
         </TouchableOpacity>
-
       </View>
 
       {/* Resources */}
 
       <View style={styles.card}>
-
         <Text style={styles.subheading}>
           Resources
         </Text>
@@ -122,14 +144,17 @@ export default function WellnessScreen() {
 
         <TouchableOpacity
           style={styles.button}
+          onPress={() =>
+            console.log(
+              'Resources selected'
+            )
+          }
         >
           <Text style={styles.buttonText}>
             View Resources
           </Text>
         </TouchableOpacity>
-
       </View>
-
     </ScrollView>
   );
 }

@@ -1,16 +1,14 @@
 import { StyleSheet } from 'react-native';
 
 export const styles = StyleSheet.create({
-
   container: {
     flex: 1,
     backgroundColor: '#F9FBFF',
-    padding: 20,
   },
 
   scrollContainer: {
     padding: 20,
-    backgroundColor: '#F9FBFF',
+    paddingBottom: 40,
   },
 
   heading: {
@@ -24,14 +22,7 @@ export const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '500',
     color: '#374151',
-    marginTop: 20,
-    marginBottom: 10,
-  },
-
-  text: {
-    fontSize: 16,
-    color: '#374151',
-    lineHeight: 24,
+    marginBottom: 12,
   },
 
   label: {
@@ -41,12 +32,18 @@ export const styles = StyleSheet.create({
     marginBottom: 8,
   },
 
+  text: {
+    fontSize: 16,
+    color: '#374151',
+    lineHeight: 24,
+    marginBottom: 8,
+  },
+
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 18,
     marginVertical: 8,
-
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
@@ -96,7 +93,6 @@ export const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     marginVertical: 5,
-
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
@@ -137,9 +133,15 @@ export const styles = StyleSheet.create({
     marginVertical: 30,
   },
 
+  largeMetric: {
+    fontSize: 36,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginVertical: 8,
+  },
+
   center: {
     alignItems: 'center',
     justifyContent: 'center',
   },
-
 });

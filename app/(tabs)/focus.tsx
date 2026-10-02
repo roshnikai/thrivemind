@@ -6,67 +6,67 @@ import {
   View,
 } from 'react-native';
 
-import { styles } from './styles';
 import { useApp } from '../context/AppContext';
 
-const FOCUS_TIME = 25 * 60;
+import { styles } from './styles';
+
+const FOCUS_DURATION_MINUTES = 25;
+const FOCUS_DURATION_SECONDS =
+  FOCUS_DURATION_MINUTES * 60;
 
 export default function FocusScreen() {
-
   const { dispatch } = useApp();
 
-  const [seconds, setSeconds] =
-    useState(FOCUS_TIME);
+  const [secondsRemaining, setSecondsRemaining] =
+    useState(FOCUS_DURATION_SECONDS);
 
   const [running, setRunning] =
     useState(false);
 
   useEffect(() => {
-
     if (!running) {
       return;
     }
 
     const timer = setInterval(() => {
-
-      setSeconds(current => {
-
+      setSecondsRemaining((current) => {
         if (current <= 1) {
+          clearInterval(timer);
+
           setRunning(false);
-          return FOCUS_TIME;
+
+          dispatch({
+            type: 'ADD_FOCUS_SESSION',
+            payload: FOCUS_DURATION_MINUTES,
+          });
+
+          return FOCUS_DURATION_SECONDS;
         }
 
         return current - 1;
       });
-
     }, 1000);
 
     return () => clearInterval(timer);
+  }, [running, dispatch]);
 
-  }, [running]);
+  const minutes = Math.floor(
+    secondsRemaining / 60
+  );
 
-  
-
-  const minutes =
-    Math.floor(seconds / 60);
-
-  const remainingSeconds =
-    seconds % 60;
+  const seconds = secondsRemaining % 60;
 
   const formattedTime =
-    `${minutes}:${remainingSeconds
+    `${minutes}:${seconds
       .toString()
       .padStart(2, '0')}`;
 
-  useEffect(() => {
-    if (formattedTime === "0:00") {
-      dispatch({
-        type: 'COMPLETE_FOCUS_SESSION',
-        payload: 25,
-      });
-    }
-  }, [dispatch, formattedTime]); // Triggers every time formattedTime changes
-
+  const resetTimer = () => {
+    setRunning(false);
+    setSecondsRemaining(
+      FOCUS_DURATION_SECONDS
+    );
+  };
 
   return (
     <View
@@ -75,7 +75,6 @@ export default function FocusScreen() {
         styles.center,
       ]}
     >
-
       <Text style={styles.heading}>
         Focus
       </Text>
@@ -90,9 +89,7 @@ export default function FocusScreen() {
 
       <TouchableOpacity
         style={styles.button}
-        onPress={() =>
-          setRunning(!running)
-        }
+        onPress={() => setRunning(!running)}
       >
         <Text style={styles.buttonText}>
           {running ? 'Pause' : 'Start'}
@@ -101,16 +98,12 @@ export default function FocusScreen() {
 
       <TouchableOpacity
         style={styles.secondaryButton}
-        onPress={() => {
-          setRunning(false);
-          setSeconds(FOCUS_TIME);
-        }}
+        onPress={resetTimer}
       >
         <Text style={styles.secondaryButtonText}>
           Reset
         </Text>
       </TouchableOpacity>
-
     </View>
   );
 }

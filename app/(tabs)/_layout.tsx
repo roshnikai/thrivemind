@@ -31,7 +31,6 @@ export default function TabLayout() {
         }),
       }}
     >
-
       <Tabs.Screen
         name="index"
         options={{
@@ -50,13 +49,6 @@ export default function TabLayout() {
         name="tasks"
         options={{
           title: 'Tasks',
-          tabBarIcon: ({ color }) => (
-            <IconSymbol
-              size={28}
-              name="checkmark.circle.fill"
-              color={color}
-            />
-          ),
         }}
       />
 
@@ -64,13 +56,6 @@ export default function TabLayout() {
         name="focus"
         options={{
           title: 'Focus',
-          tabBarIcon: ({ color }) => (
-            <IconSymbol
-              size={28}
-              name="timer"
-              color={color}
-            />
-          ),
         }}
       />
 
@@ -78,13 +63,6 @@ export default function TabLayout() {
         name="wellness"
         options={{
           title: 'Wellness',
-          tabBarIcon: ({ color }) => (
-            <IconSymbol
-              size={28}
-              name="heart.fill"
-              color={color}
-            />
-          ),
         }}
       />
 
@@ -92,16 +70,8 @@ export default function TabLayout() {
         name="insights"
         options={{
           title: 'Insights',
-          tabBarIcon: ({ color }) => (
-            <IconSymbol
-              size={28}
-              name="chart.bar.fill"
-              color={color}
-            />
-          ),
         }}
       />
-
     </Tabs>
   );
 }

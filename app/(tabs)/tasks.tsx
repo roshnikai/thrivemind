@@ -13,20 +13,20 @@ import { useApp } from '../context/AppContext';
 import { styles } from './styles';
 
 export default function TasksScreen() {
-
   const { state, dispatch } = useApp();
 
   const [text, setText] = useState('');
 
   const addTask = () => {
+    const trimmedText = text.trim();
 
-    if (!text.trim()) {
+    if (!trimmedText) {
       return;
     }
 
     dispatch({
       type: 'ADD_TASK',
-      payload: text.trim(),
+      payload: trimmedText,
     });
 
     setText('');
@@ -34,7 +34,6 @@ export default function TasksScreen() {
 
   return (
     <View style={styles.container}>
-
       <Text style={styles.heading}>
         Tasks
       </Text>
@@ -44,11 +43,13 @@ export default function TasksScreen() {
         placeholder="Add a new task..."
         value={text}
         onChangeText={setText}
+        accessibilityLabel="New task"
       />
 
       <TouchableOpacity
         style={styles.button}
         onPress={addTask}
+        accessibilityRole="button"
       >
         <Text style={styles.buttonText}>
           Add Task
@@ -57,10 +58,11 @@ export default function TasksScreen() {
 
       <FlatList
         data={state.tasks}
-        keyExtractor={item => item.id}
-
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={{
+          paddingBottom: 20,
+        }}
         renderItem={({ item }) => (
-
           <TouchableOpacity
             style={styles.task}
             onPress={() =>
@@ -69,23 +71,25 @@ export default function TasksScreen() {
                 payload: item.id,
               })
             }
+            accessibilityRole="button"
+            accessibilityLabel={`Task: ${item.title}`}
           >
-
-            <Text style={styles.taskText}>
-
-              {item.completed
-                ? '✓ '
-                : '○ '}
-
+            <Text
+              style={[
+                styles.taskText,
+                item.completed && {
+                  textDecorationLine:
+                    'line-through',
+                  opacity: 0.5,
+                },
+              ]}
+            >
+              {item.completed ? '✓ ' : '○ '}
               {item.title}
-
             </Text>
-
           </TouchableOpacity>
-
         )}
       />
-
     </View>
   );
 }

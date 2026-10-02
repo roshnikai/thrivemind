@@ -6,8 +6,8 @@ import {
   TouchableOpacity
 } from 'react-native';
 
-import { styles } from './(tabs)/styles';
-import { useApp } from './context/AppContext';
+import { styles } from './styles';
+import { useApp } from '../context/AppContext';
 
 export default function SettingsScreen() {
 

@@ -6,122 +6,155 @@ import {
   View,
 } from 'react-native';
 
-import { styles } from './styles';
 import { useApp } from '../context/AppContext';
+
+import { styles } from './styles';
 
 export default function InsightsScreen() {
   const { state } = useApp();
 
+  const completedTasks =
+    state.tasks.filter(
+      (task) => task.completed
+    ).length;
+
   const totalFocusMinutes =
     state.focusSessions.reduce(
       (total, session) =>
-        total + session.duration,
+        total + session.durationMinutes,
       0
     );
 
-  const now = new Date();
+  const averageMood =
+    state.checkIns.length > 0
+      ? state.checkIns.reduce(
+          (total, checkIn) =>
+            total + checkIn.mood,
+          0
+        ) / state.checkIns.length
+      : null;
 
-  const startOfWeek = new Date(now);
-  const day = now.getDay(); // Sunday = 0, Monday = 1, etc.
-  const diff = day === 0 ? 6 : day - 1; // Make Monday the start of the week
-
-  startOfWeek.setDate(now.getDate() - diff);
-  startOfWeek.setHours(0, 0, 0, 0);
-
-  const journalEntriesThisWeek = state.journalEntries.filter(
-    (entry) => new Date(entry.createdAt) >= startOfWeek
-  ).length;
+  const averageEnergy =
+    state.checkIns.length > 0
+      ? state.checkIns.reduce(
+          (total, checkIn) =>
+            total + checkIn.energy,
+          0
+        ) / state.checkIns.length
+      : null;
 
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={styles.scrollContainer}
+      contentContainerStyle={
+        styles.scrollContainer
+      }
     >
-
       <Text style={styles.heading}>
         Insights
       </Text>
 
       <Text style={styles.text}>
-        Here&#39;s a look at your recent patterns.
+        Here&#39;s a look at your recent activity.
       </Text>
 
       {/* Mood */}
 
       <View style={styles.card}>
-        <Text style={styles.heading}>
-          {totalFocusMinutes}
-        </Text>
-
-        <Text style={styles.text}>
-          Focus minutes this week
-        </Text>
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.heading}>
-          {journalEntriesThisWeek}
-        </Text>
-
-        <Text style={styles.text}>
-          Journal entries this week
-        </Text>
-      </View>
-
-      <View style={styles.card}>
-
         <Text style={styles.subheading}>
-          Mood
+          Average Mood
         </Text>
 
-        <Text style={styles.heading}>
-          {state.mood ?? 'Not recorded'} / 5
+        <Text style={styles.largeMetric}>
+          {averageMood !== null
+            ? averageMood.toFixed(1)
+            : '—'}{' '}
+          / 5
+        </Text>
+      </View>
+
+      {/* Energy */}
+
+      <View style={styles.card}>
+        <Text style={styles.subheading}>
+          Average Energy
         </Text>
 
-        <Text style={styles.text}>
-          Average mood this week
+        <Text style={styles.largeMetric}>
+          {averageEnergy !== null
+            ? averageEnergy.toFixed(1)
+            : '—'}{' '}
+          / 5
         </Text>
-
       </View>
 
       {/* Tasks */}
 
       <View style={styles.card}>
-
         <Text style={styles.subheading}>
-          Productivity
+          Tasks Completed
         </Text>
 
-        <Text style={styles.heading}>
-          14
+        <Text style={styles.largeMetric}>
+          {completedTasks}
         </Text>
 
         <Text style={styles.text}>
-          Tasks completed this week
+          completed tasks
         </Text>
-
       </View>
 
-      {/* Pattern */}
+      {/* Focus */}
 
       <View style={styles.card}>
+        <Text style={styles.subheading}>
+          Focus Time
+        </Text>
 
+        <Text style={styles.largeMetric}>
+          {totalFocusMinutes}
+        </Text>
+
+        <Text style={styles.text}>
+          total focus minutes
+        </Text>
+      </View>
+
+      {/* Journal */}
+
+      <View style={styles.card}>
+        <Text style={styles.subheading}>
+          Journal Entries
+        </Text>
+
+        <Text style={styles.largeMetric}>
+          {state.journalEntries.length}
+        </Text>
+
+        <Text style={styles.text}>
+          entries recorded
+        </Text>
+      </View>
+
+      {/* Patterns */}
+
+      <View style={styles.card}>
         <Text style={styles.subheading}>
           Patterns
         </Text>
 
-        <Text style={styles.text}>
-          💡 You tend to complete more tasks
-          during morning focus sessions.
-        </Text>
-
-        <Text style={styles.text}>
-          💡 Your energy appears to be
-          highest in the morning.
-        </Text>
-
+        {state.checkIns.length === 0 ? (
+          <Text style={styles.text}>
+            Complete a few check-ins to start
+            seeing personal patterns.
+          </Text>
+        ) : (
+          <Text style={styles.text}>
+            Your insights will become more
+            personalized as you use the app.
+          </Text>
+        )}
       </View>
-
     </ScrollView>
   );
 }
