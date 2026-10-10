@@ -1,16 +1,16 @@
 import React, { useEffect, useState } from 'react';
 
 import {
-  Text,
-  TouchableOpacity,
-  View,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 
-import { useApp } from '../context/AppContext';
+import { useApp } from '../../context/AppContext';
 
 import { styles } from './styles';
 
-const FOCUS_DURATION_MINUTES = 25;
+const FOCUS_DURATION_MINUTES = 0.25;
 const FOCUS_DURATION_SECONDS =
   FOCUS_DURATION_MINUTES * 60;
 

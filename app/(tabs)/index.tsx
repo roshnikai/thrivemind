@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import {
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View,
+    ScrollView,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 // 1. Import useRouter from expo-router
-import { useRouter } from 'expo-router'; 
+import { useRouter } from 'expo-router';
 
-import { useApp } from '../context/AppContext';
+import { useApp } from '../../context/AppContext';
 import { styles } from './styles';
 
 export default function HomeScreen() {

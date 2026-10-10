@@ -1,61 +1,168 @@
+
 import React from 'react';
 
 import {
-  ScrollView,
-  Text,
-  View,
+    ScrollView,
+    Text,
+    View,
 } from 'react-native';
 
-import { useApp } from '../context/AppContext';
-
+import { useApp } from '../../context/AppContext';
 import { styles } from './styles';
+
+function getWeekStart(referenceDate: Date): Date {
+  const start = new Date(referenceDate);
+
+  // Use local time, with Monday as the first day.
+  start.setHours(0, 0, 0, 0);
+
+  const daysSinceMonday =
+    (start.getDay() + 6) % 7;
+
+  start.setDate(
+    start.getDate() - daysSinceMonday
+  );
+
+  return start;
+}
+
+function isWithinWeek(
+  timestamp: string | null | undefined,
+  start: Date,
+  nextStart: Date
+): boolean {
+  if (!timestamp) {
+    return false;
+  }
+
+  const date = new Date(timestamp);
+
+  if (Number.isNaN(date.getTime())) {
+    return false;
+  }
+
+  return date >= start && date < nextStart;
+}
 
 export default function InsightsScreen() {
   const { state } = useApp();
 
-  const completedTasks =
-    state.tasks.filter(
-      (task) => task.completed
-    ).length;
+  const weekStart = getWeekStart(new Date());
+
+  // The next Monday is the exclusive end boundary.
+  const nextWeekStart = new Date(weekStart);
+
+  nextWeekStart.setDate(
+    nextWeekStart.getDate() + 7
+  );
+
+  // Calculate the inclusive Sunday for display.
+  const weekEnd = new Date(nextWeekStart);
+
+  weekEnd.setDate(weekEnd.getDate() - 1);
+
+  const startLabel = weekStart.toLocaleDateString(
+    undefined,
+    {
+      month: 'short',
+      day: 'numeric',
+    }
+  );
+
+  const endLabel = weekEnd.toLocaleDateString(
+    undefined,
+    {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    }
+  );
+
+  // Filter all event-based records to this week.
+
+  const weeklyCheckIns = state.checkIns.filter(
+    (entry) =>
+      isWithinWeek(
+        entry.createdAt,
+        weekStart,
+        nextWeekStart
+      )
+  );
+
+  const weeklyFocusSessions =
+    state.focusSessions.filter((session) =>
+      isWithinWeek(
+        session.completedAt,
+        weekStart,
+        nextWeekStart
+      )
+    );
+
+  const weeklyJournalEntries =
+    state.journalEntries.filter((entry) =>
+      isWithinWeek(
+        entry.createdAt,
+        weekStart,
+        nextWeekStart
+      )
+    );
+
+  // Count currently completed tasks whose latest
+  // completion occurred during this week.
+
+  const weeklyCompletedTasks = state.tasks.filter(
+    (task) =>
+      task.completed &&
+      isWithinWeek(
+        task.completedAt,
+        weekStart,
+        nextWeekStart
+      )
+  );
+
+  const averageMood =
+    weeklyCheckIns.length > 0
+      ? weeklyCheckIns.reduce(
+          (total, entry) => total + entry.mood,
+          0
+        ) / weeklyCheckIns.length
+      : null;
+
+  const averageEnergy =
+    weeklyCheckIns.length > 0
+      ? weeklyCheckIns.reduce(
+          (total, entry) => total + entry.energy,
+          0
+        ) / weeklyCheckIns.length
+      : null;
 
   const totalFocusMinutes =
-    state.focusSessions.reduce(
+    weeklyFocusSessions.reduce(
       (total, session) =>
         total + session.durationMinutes,
       0
     );
 
-  const averageMood =
-    state.checkIns.length > 0
-      ? state.checkIns.reduce(
-          (total, checkIn) =>
-            total + checkIn.mood,
-          0
-        ) / state.checkIns.length
-      : null;
-
-  const averageEnergy =
-    state.checkIns.length > 0
-      ? state.checkIns.reduce(
-          (total, checkIn) =>
-            total + checkIn.energy,
-          0
-        ) / state.checkIns.length
-      : null;
+  const focusMinutesLabel =
+    Number.isInteger(totalFocusMinutes)
+      ? String(totalFocusMinutes)
+      : totalFocusMinutes.toFixed(1);
 
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={
-        styles.scrollContainer
-      }
+      contentContainerStyle={styles.scrollContainer}
     >
       <Text style={styles.heading}>
         Insights
       </Text>
 
       <Text style={styles.text}>
-        Here&#39;s a look at your recent activity.
+        Your activity for this week
+      </Text>
+
+      <Text style={styles.label}>
+        {startLabel} – {endLabel}
       </Text>
 
       {/* Mood */}
@@ -70,6 +177,13 @@ export default function InsightsScreen() {
             ? averageMood.toFixed(1)
             : '—'}{' '}
           / 5
+        </Text>
+
+        <Text style={styles.text}>
+          Based on {weeklyCheckIns.length}{' '}
+          {weeklyCheckIns.length === 1
+            ? 'check-in'
+            : 'check-ins'} this week.
         </Text>
       </View>
 
@@ -92,15 +206,11 @@ export default function InsightsScreen() {
 
       <View style={styles.card}>
         <Text style={styles.subheading}>
-          Tasks Completed
+          Tasks Completed This Week
         </Text>
 
         <Text style={styles.largeMetric}>
-          {completedTasks}
-        </Text>
-
-        <Text style={styles.text}>
-          completed tasks
+          {weeklyCompletedTasks.length}
         </Text>
       </View>
 
@@ -108,31 +218,29 @@ export default function InsightsScreen() {
 
       <View style={styles.card}>
         <Text style={styles.subheading}>
-          Focus Time
+          Focus Time This Week
         </Text>
 
         <Text style={styles.largeMetric}>
-          {totalFocusMinutes}
+          {focusMinutesLabel}
         </Text>
 
         <Text style={styles.text}>
-          total focus minutes
+          minutes across{' '}
+          {weeklyFocusSessions.length}{' '}
+          completed focus sessions.
         </Text>
       </View>
 
-      {/* Journal */}
+      {/* Journaling */}
 
       <View style={styles.card}>
         <Text style={styles.subheading}>
-          Journal Entries
+          Journal Entries This Week
         </Text>
 
         <Text style={styles.largeMetric}>
-          {state.journalEntries.length}
-        </Text>
-
-        <Text style={styles.text}>
-          entries recorded
+          {weeklyJournalEntries.length}
         </Text>
       </View>
 
@@ -140,18 +248,24 @@ export default function InsightsScreen() {
 
       <View style={styles.card}>
         <Text style={styles.subheading}>
-          Patterns
+          Your Weekly Patterns
         </Text>
 
-        {state.checkIns.length === 0 ? (
+        {weeklyCheckIns.length === 0 &&
+        weeklyFocusSessions.length === 0 &&
+        weeklyCompletedTasks.length === 0 &&
+        weeklyJournalEntries.length === 0 ? (
           <Text style={styles.text}>
-            Complete a few check-ins to start
-            seeing personal patterns.
+            No activity recorded this week yet.
+            Complete a check-in, task, focus
+            session, or journal entry to get started.
           </Text>
         ) : (
           <Text style={styles.text}>
-            Your insights will become more
-            personalized as you use the app.
+            These summaries reflect activity
+            recorded this week. More personalized
+            patterns can be added as your app
+            develops.
           </Text>
         )}
       </View>
