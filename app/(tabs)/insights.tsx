@@ -1,10 +1,10 @@
-
-import React from 'react';
+import React, {useState} from 'react';
 
 import {
-    ScrollView,
-    Text,
-    View,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 import { useApp } from '../../context/AppContext';
@@ -44,8 +44,35 @@ function isWithinWeek(
   return date >= start && date < nextStart;
 }
 
+// Focus durations are stored to four decimal places in Supabase.
+// Add scaled integers to avoid floating-point artifacts, then show
+// all meaningful decimal digits without rounding to tenths.
+
+function formatExactMinutes(
+  sessions: { durationMinutes: number }[]
+): string {
+  // Sum scaled integers to reduce floating-point artifacts.
+  const precision = 10000;
+
+  const totalScaledMinutes = sessions.reduce(
+    (total, session) =>
+      total +
+      Math.round(
+        Number(session.durationMinutes) * precision
+      ),
+    0
+  );
+
+  return (totalScaledMinutes / precision)
+    .toFixed(4)
+    .replace(/(?:\.0+|(\.\d*?)0+)$/, '$1')
+    .replace(/\.$/, '');
+}
+
 export default function InsightsScreen() {
-  const { state } = useApp();
+  
+  const { state, dataError, refreshAllData } = useApp();
+  const [retrying, setRetrying] = useState(false);
 
   const weekStart = getWeekStart(new Date());
 
@@ -79,7 +106,6 @@ export default function InsightsScreen() {
   );
 
   // Filter all event-based records to this week.
-
   const weeklyCheckIns = state.checkIns.filter(
     (entry) =>
       isWithinWeek(
@@ -109,7 +135,6 @@ export default function InsightsScreen() {
 
   // Count currently completed tasks whose latest
   // completion occurred during this week.
-
   const weeklyCompletedTasks = state.tasks.filter(
     (task) =>
       task.completed &&
@@ -136,17 +161,9 @@ export default function InsightsScreen() {
         ) / weeklyCheckIns.length
       : null;
 
-  const totalFocusMinutes =
-    weeklyFocusSessions.reduce(
-      (total, session) =>
-        total + session.durationMinutes,
-      0
-    );
-
-  const focusMinutesLabel =
-    Number.isInteger(totalFocusMinutes)
-      ? String(totalFocusMinutes)
-      : totalFocusMinutes.toFixed(1);
+  const focusMinutesLabel = formatExactMinutes(
+    weeklyFocusSessions
+  );
 
   return (
     <ScrollView
@@ -165,8 +182,43 @@ export default function InsightsScreen() {
         {startLabel} – {endLabel}
       </Text>
 
-      {/* Mood */}
+      {dataError !== null && (
+        <View style={styles.card}>
+          <Text style={styles.text}>
+            We couldn&apos;t load your latest data.
+          </Text>
 
+          <Text style={styles.text}>
+            {dataError}
+          </Text>
+
+          <TouchableOpacity
+            style={styles.button}
+            disabled={retrying}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: retrying }}
+            onPress={async () => {
+              if (retrying) return;
+
+              setRetrying(true);
+
+              try {
+                await refreshAllData();
+              } catch {
+                // The provider should record the error in dataError.
+              } finally {
+                setRetrying(false);
+              }
+            }}
+          >
+            <Text style={styles.buttonText}>
+              {retrying ? 'Retrying...' : 'Retry Loading'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Mood */}
       <View style={styles.card}>
         <Text style={styles.subheading}>
           Average Mood
@@ -188,7 +240,6 @@ export default function InsightsScreen() {
       </View>
 
       {/* Energy */}
-
       <View style={styles.card}>
         <Text style={styles.subheading}>
           Average Energy
@@ -203,7 +254,6 @@ export default function InsightsScreen() {
       </View>
 
       {/* Tasks */}
-
       <View style={styles.card}>
         <Text style={styles.subheading}>
           Tasks Completed This Week
@@ -215,7 +265,6 @@ export default function InsightsScreen() {
       </View>
 
       {/* Focus */}
-
       <View style={styles.card}>
         <Text style={styles.subheading}>
           Focus Time This Week
@@ -233,7 +282,6 @@ export default function InsightsScreen() {
       </View>
 
       {/* Journaling */}
-
       <View style={styles.card}>
         <Text style={styles.subheading}>
           Journal Entries This Week
@@ -245,7 +293,6 @@ export default function InsightsScreen() {
       </View>
 
       {/* Patterns */}
-
       <View style={styles.card}>
         <Text style={styles.subheading}>
           Your Weekly Patterns

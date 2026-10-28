@@ -1,93 +1,137 @@
 import React, { useState } from 'react';
 
 import {
+  ActivityIndicator,
+  Alert,
   FlatList,
+  Platform,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 
-import { useApp } from '../../context/AppContext';
+import {
+  useApp,
+  type Task,
+} from '../../context/AppContext';
 
-import { supabase } from '../../lib/supabase';
 import { styles } from './styles';
 
 export default function TasksScreen() {
-  const { state, dispatch } = useApp();
+  const {
+    state,
+    tasksLoading,
+    taskError,
+    refreshTasks,
+    createTask,
+    toggleTask,
+    deleteTask,
+  } = useApp();
 
   const [text, setText] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [busyTaskId, setBusyTaskId] =
+    useState<string | null>(null);
 
-  const [testStatus, setTestStatus] = useState('Not tested');
+  // ----------------------------------------
+  // ADD TASK
+  // ----------------------------------------
 
-  const addTask = () => {
-    const trimmedText = text.trim();
+  const handleAddTask = async () => {
+    const title = text.trim();
 
-    if (!trimmedText) {
+    if (!title || saving) {
       return;
     }
 
-    dispatch({
-      type: 'ADD_TASK',
-      payload: trimmedText,
-    });
-
-    setText('');
-  };
-
-  //test Supabase connection by inserting a test task - temporary function
-  const testSupabaseConnection = async () => {
-    console.log('TEST BUTTON CLICKED');
-
-    setTestStatus('Checking Supabase...');
+    setSaving(true);
 
     try {
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser();
-
-      if (authError) {
-        throw authError;
-      }
-
-      if (!user) {
-        setTestStatus(
-          'Supabase responded, but nobody is signed in. ' +
-          'Implement sign-in before testing inserts.'
-        );
-        return;
-      }
-
-      const { error } = await supabase
-        .from('tasks')
-        .insert({
-          user_id: user.id,
-          title: `Connection test ${new Date().toISOString()}`,
-          completed: false,
-          completed_at: null,
-        });
-
-      if (error) {
-        throw error;
-      }
-
-      setTestStatus(
-        'SUCCESS: Task inserted into Supabase!'
-      );
-
-      console.log('Supabase insert succeeded');
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : String(error);
-
-      console.error('Supabase test failed:', error);
-
-      setTestStatus(`FAILED: ${message}`);
+      await createTask(title);
+      setText('');
+    } catch {
+      // AppContext exposes the error through taskError.
+    } finally {
+      setSaving(false);
     }
   };
+
+  // ----------------------------------------
+  // COMPLETE / UNCOMPLETE TASK
+  // ----------------------------------------
+
+  const handleToggleTask = async (task: Task) => {
+    if (busyTaskId !== null) {
+      return;
+    }
+
+    setBusyTaskId(task.id);
+
+    try {
+      await toggleTask(task);
+    } catch {
+      // The shared state only changes if the
+      // database update succeeds.
+    } finally {
+      setBusyTaskId(null);
+    }
+  };
+
+  // ----------------------------------------
+  // DELETE TASK
+  // ----------------------------------------
+
+  const performDelete = async (taskId: string) => {
+    if (busyTaskId !== null) {
+      return;
+    }
+
+    setBusyTaskId(taskId);
+
+    try {
+      await deleteTask(taskId);
+    } catch {
+      // Error will be shown below the controls.
+    } finally {
+      setBusyTaskId(null);
+    }
+  };
+
+  const confirmDelete = (taskId: string) => {
+    const title = 'Delete this task?';
+    const message =
+      'This task will be permanently removed from your account.';
+
+    if (Platform.OS === 'web') {
+      if (
+        typeof window !== 'undefined' &&
+        window.confirm(`${title}\n\n${message}`)
+      ) {
+        void performDelete(taskId);
+      }
+
+      return;
+    }
+
+    Alert.alert(title, message, [
+      {
+        text: 'Cancel',
+        style: 'cancel',
+      },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => {
+          void performDelete(taskId);
+        },
+      },
+    ]);
+  };
+
+  // ----------------------------------------
+  // UI
+  // ----------------------------------------
 
   return (
     <View style={styles.container}>
@@ -95,75 +139,181 @@ export default function TasksScreen() {
         Tasks
       </Text>
 
+      <Text style={styles.text}>
+        Your tasks sync with your Supabase account.
+      </Text>
+
       <TextInput
         style={styles.input}
         placeholder="Add a new task..."
         value={text}
         onChangeText={setText}
-        accessibilityLabel="New task"
-      />
-
-      <TouchableOpacity
-        style={styles.button}
-        onPress={addTask}
-        accessibilityRole="button"
-      >
-        <Text style={styles.buttonText}>
-          Add Task
-        </Text>
-      </TouchableOpacity>
-
-      <FlatList
-        data={state.tasks}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={{
-          paddingBottom: 20,
+        onSubmitEditing={() => {
+          void handleAddTask();
         }}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.task}
-            onPress={() =>
-              dispatch({
-                type: 'TOGGLE_TASK',
-                payload: {
-                  id: item.id,
-                  completedAt: new Date().toISOString(),
-                },
-              })
-            }
-            accessibilityRole="button"
-            accessibilityLabel={`Task: ${item.title}`}
-          >
-            <Text
-              style={[
-                styles.taskText,
-                item.completed && {
-                  textDecorationLine:
-                    'line-through',
-                  opacity: 0.5,
-                },
-              ]}
-            >
-              {item.completed ? '✓ ' : '○ '}
-              {item.title}
-            </Text>
-          </TouchableOpacity>
-        )}
+        returnKeyType="done"
+        accessibilityLabel="New task title"
       />
 
       <TouchableOpacity
-        style={styles.button}
-        onPress={testSupabaseConnection}
+        style={[
+          styles.button,
+          (saving || !text.trim()) && {
+            opacity: 0.6,
+          },
+        ]}
+        onPress={() => {
+          void handleAddTask();
+        }}
+        disabled={saving || !text.trim()}
         accessibilityRole="button"
       >
         <Text style={styles.buttonText}>
-          Test Supabase Connection
+          {saving ? 'Saving...' : 'Add Task'}
         </Text>
       </TouchableOpacity>
 
-      <Text style={styles.text}>
-        Test status: {testStatus}
+      <TouchableOpacity
+        style={styles.secondaryButton}
+        onPress={() => {
+          void refreshTasks().catch(() => {});
+        }}
+        disabled={tasksLoading}
+        accessibilityRole="button"
+      >
+        <Text style={styles.secondaryButtonText}>
+          {tasksLoading
+            ? 'Refreshing...'
+            : 'Refresh from Cloud'}
+        </Text>
+      </TouchableOpacity>
+
+      {taskError !== null && (
+        <View
+          style={{
+            backgroundColor: '#FEF2F2',
+            borderRadius: 10,
+            padding: 12,
+            marginVertical: 8,
+          }}
+        >
+          <Text
+            style={{
+              color: '#B42318',
+              fontSize: 14,
+              lineHeight: 21,
+            }}
+          >
+            {taskError}
+          </Text>
+        </View>
+      )}
+
+      <Text style={styles.subheading}>
+        Your Tasks ({state.tasks.length})
       </Text>
+
+      {tasksLoading ? (
+        <View
+          style={{
+            flex: 1,
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        >
+          <ActivityIndicator size="large" />
+
+          <Text style={styles.text}>
+            Loading tasks from Supabase...
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          style={{ flex: 1 }}
+          data={state.tasks}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={{
+            paddingBottom: 24,
+            flexGrow: 1,
+          }}
+          ListEmptyComponent={
+            <Text style={styles.text}>
+              No tasks yet. Add your first task above.
+            </Text>
+          }
+          renderItem={({ item }) => (
+            <View style={styles.task}>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 10,
+                }}
+              >
+                <TouchableOpacity
+                  style={{
+                    flex: 1,
+                    paddingVertical: 6,
+                  }}
+                  onPress={() => {
+                    void handleToggleTask(item);
+                  }}
+                  disabled={busyTaskId !== null}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{
+                    checked: item.completed,
+                    disabled: busyTaskId !== null,
+                  }}
+                  accessibilityLabel={item.title}
+                >
+                  <Text
+                    style={[
+                      styles.taskText,
+                      item.completed && {
+                        textDecorationLine:
+                          'line-through',
+                        opacity: 0.55,
+                      },
+                    ]}
+                  >
+                    {item.completed ? '✓ ' : '○ '}
+                    {item.title}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => {
+                    confirmDelete(item.id);
+                  }}
+                  disabled={busyTaskId !== null}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    `Delete task: ${item.title}`
+                  }
+                  style={{
+                    padding: 8,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: '#B42318',
+                      fontWeight: '600',
+                    }}
+                  >
+                    Delete
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {busyTaskId === item.id && (
+                <Text style={styles.text}>
+                  Saving changes...
+                </Text>
+              )}
+            </View>
+          )}
+        />
+      )}
     </View>
   );
 }
