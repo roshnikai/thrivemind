@@ -1,14 +1,14 @@
 
+import { useRouter } from 'expo-router';
 import React from 'react';
 import {
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View,
+    ScrollView,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
 import { useApp } from '../../context/AppContext';
-import { styles } from './styles';
+import { styles } from '../../styles/tabs';
 
 export default function HomeScreen() {
   const router = useRouter();

@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, { useState } from 'react';
 
 import {
   ScrollView,
@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 
 import { useApp } from '../../context/AppContext';
-import { styles } from './styles';
+import { styles } from '../../styles/tabs';
 
 function getWeekStart(referenceDate: Date): Date {
   const start = new Date(referenceDate);

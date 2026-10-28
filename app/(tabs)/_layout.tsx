@@ -36,11 +36,7 @@ export default function TabLayout() {
         options={{
           title: 'Home',
           tabBarIcon: ({ color }) => (
-            <IconSymbol
-              size={28}
-              name="house.fill"
-              color={color}
-            />
+            <IconSymbol size={28} name="house.fill" color={color} />
           ),
         }}
       />
@@ -49,6 +45,9 @@ export default function TabLayout() {
         name="tasks"
         options={{
           title: 'Tasks',
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={28} name="checkmark.circle.fill" color={color} />
+          ),
         }}
       />
 
@@ -56,6 +55,9 @@ export default function TabLayout() {
         name="focus"
         options={{
           title: 'Focus',
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={28} name="scope" color={color} />
+          ),
         }}
       />
 
@@ -63,6 +65,9 @@ export default function TabLayout() {
         name="wellness"
         options={{
           title: 'Wellness',
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={28} name="heart.fill" color={color} />
+          ),
         }}
       />
 
@@ -70,6 +75,9 @@ export default function TabLayout() {
         name="insights"
         options={{
           title: 'Insights',
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={28} name="chart.bar.fill" color={color} />
+          ),
         }}
       />
 
@@ -77,6 +85,9 @@ export default function TabLayout() {
         name="settings"
         options={{
           title: 'Settings',
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={28} name="gearshape.fill" color={color} />
+          ),
         }}
       />
     </Tabs>

@@ -5,7 +5,7 @@ import {
   View,
 } from 'react-native';
 import { useApp } from '../../context/AppContext';
-import { styles } from './styles';
+import { styles } from '../../styles/tabs';
 
 // Keep the short 15-second duration for the current prototype/demo timer.
 // This is stored as 0.25 minutes in the numeric database column.
@@ -70,7 +70,7 @@ export default function FocusScreen() {
       {savingSession ? <Text style={styles.text}>Saving completed session...</Text> : null}
 
       <TouchableOpacity
-        style={styles.button}
+        style={styles.startFocusButton}
         onPress={() => setRunning((current) => !current)}
         disabled={savingSession}
         accessibilityRole="button"

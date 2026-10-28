@@ -1,22 +1,22 @@
 import React, { useState } from 'react';
 
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Platform,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    Platform,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 
 import {
-  useApp,
-  type Task,
+    useApp,
+    type Task,
 } from '../../context/AppContext';
 
-import { styles } from './styles';
+import { styles } from '../../styles/tabs';
 
 export default function TasksScreen() {
   const {

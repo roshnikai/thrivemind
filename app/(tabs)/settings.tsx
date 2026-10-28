@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
 import {
-  Alert,
-  Platform,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View,
+    Alert,
+    Platform,
+    ScrollView,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { useApp } from '../../context/AppContext';
-import { styles } from './styles';
 import { supabase } from '../../lib/supabase';
+import { styles } from '../../styles/tabs';
 
 const interfaceStyles = ['Minimal', 'Visual', 'Text-focused'] as const;
 const animationOptions = ['Normal', 'Reduced', 'Off'] as const;

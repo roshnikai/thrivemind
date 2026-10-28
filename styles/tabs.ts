@@ -68,6 +68,14 @@ export const styles = StyleSheet.create({
     marginVertical: 8,
   },
 
+  startFocusButton: {
+    backgroundColor: '#4C6EF5',
+    padding: 15,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginVertical: 8,
+  },
+
   buttonText: {
     color: '#FFFFFF',
     fontSize: 16,

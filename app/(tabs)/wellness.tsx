@@ -8,7 +8,7 @@ import {
   View,
 } from 'react-native';
 import { useApp } from '../../context/AppContext';
-import { styles } from './styles';
+import { styles } from '../../styles/tabs';
 
 const scale = [1, 2, 3, 4, 5];
 
