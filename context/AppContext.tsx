@@ -78,6 +78,7 @@ type FocusSessionRow = {
   id: string;
   duration_minutes: number | string;
   completed_at: string;
+  clientSessionId: string;
 };
 
 type JournalEntryRow = {
@@ -116,7 +117,7 @@ type AppContextValue = {
   toggleTask: (task: Task) => Promise<void>;
   deleteTask: (taskId: string) => Promise<void>;
   addCheckIn: (mood: number, energy: number) => Promise<void>;
-  addFocusSession: (durationMinutes: number) => Promise<void>;
+  addFocusSession: (durationMinutes: number, clientSessionId: string) => Promise<void>;
   addJournalEntry: (text: string) => Promise<void>;
   savePreferences: (patch: Partial<UserPreferences>) => Promise<void>;
   clearAllData: () => Promise<void>;
@@ -301,6 +302,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const loadUserData = useCallback(async (userId: string, requestId: number) => {
+    const controller = new AbortController();
+
+    // One timeout covers all five parallel Supabase queries.
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+    }, 15000);
+
     try {
       const [
         tasksResult,
@@ -313,27 +321,35 @@ export function AppProvider({ children }: { children: ReactNode }) {
           .from('tasks')
           .select('id, title, completed, completed_at')
           .eq('user_id', userId)
-          .order('created_at', { ascending: true }),
+          .order('created_at', { ascending: true })
+          .abortSignal(controller.signal),
+
         supabase
           .from('check_ins')
           .select('id, mood, energy, created_at')
           .eq('user_id', userId)
-          .order('created_at', { ascending: false }),
+          .order('created_at', { ascending: false })
+          .abortSignal(controller.signal),
+
         supabase
           .from('focus_sessions')
           .select('id, duration_minutes, completed_at')
           .eq('user_id', userId)
-          .order('completed_at', { ascending: false }),
+          .order('completed_at', { ascending: false })
+          .abortSignal(controller.signal),
+
         supabase
           .from('journal_entries')
           .select('id, text, created_at')
           .eq('user_id', userId)
-          .order('created_at', { ascending: false }),
+          .order('created_at', { ascending: false })
+          .abortSignal(controller.signal),
+
         supabase
           .from('user_preferences')
           .select('interface_style, animations, sound')
           .eq('user_id', userId)
-          .maybeSingle(),
+          .abortSignal(controller.signal),
       ]);
 
       const queryError =
@@ -342,8 +358,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         focusSessionsResult.error ??
         journalEntriesResult.error ??
         preferencesResult.error;
+
       if (queryError) throw queryError;
 
+      // Ignore results from an old request or account.
       if (
         !mountedRef.current ||
         requestId !== requestIdRef.current ||
@@ -364,6 +382,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           ),
         },
       });
+
       setDataError(null);
       setTaskError(null);
     } catch (error) {
@@ -373,10 +392,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
         activeUserIdRef.current === userId
       ) {
         setDataError(getErrorMessage(error));
-        // Keep the new account's state empty if any of its data failed to load.
+
+        // Keep the state empty if the complete initial load fails.
         dispatch({ type: 'RESET_STATE' });
       }
     } finally {
+      // Always clear the timeout, even if a query fails or is cancelled.
+      clearTimeout(timeoutId);
+
+      // A stale request must not change the current account's loading state.
       if (
         mountedRef.current &&
         requestId === requestIdRef.current &&
@@ -469,34 +493,78 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const refreshTasks = useCallback(async () => {
     setTaskError(null);
     setTasksLoading(true);
-    let operationUserId: string | null | undefined = activeUserIdRef.current;
+
+    const controller = new AbortController();
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+    let operationUserId: string | null | undefined =
+      activeUserIdRef.current;
+
     let requestId = requestIdRef.current;
+
     try {
       const user = await getRequiredUser();
+
       operationUserId = user.id;
       requestId = requestIdRef.current;
+
       if (activeUserIdRef.current !== user.id) {
         throw new Error('Your account changed. Please try again.');
       }
+
+      // Stop waiting if Supabase does not respond within 15 seconds.
+      timeoutId = setTimeout(() => {
+        controller.abort();
+      }, 15000);
+
       const { data, error } = await supabase
         .from('tasks')
         .select('id, title, completed, completed_at')
         .eq('user_id', user.id)
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: true })
+        .abortSignal(controller.signal);
+
+      if (controller.signal.aborted) {
+        throw new Error(
+          'The request timed out. Check your internet connection and try again.'
+        );
+      }
+
       if (error) throw error;
+
+      // Ignore results belonging to an outdated request or account.
       if (
         requestId !== requestIdRef.current ||
         activeUserIdRef.current !== user.id
-      ) return;
+      ) {
+        return;
+      }
+
       dispatch({
         type: 'REPLACE_TASKS',
         payload: ((data ?? []) as TaskRow[]).map(mapTask),
       });
+
+      setTaskError(null);
     } catch (error) {
-      setTaskError(getErrorMessage(error));
-      throw error;
+      const message = controller.signal.aborted
+        ? 'The cloud refresh timed out. Check your internet connection and try again.'
+        : getErrorMessage(error);
+
+      if (
+        requestId === requestIdRef.current &&
+        activeUserIdRef.current === operationUserId
+      ) {
+        setTaskError(message);
+      }
+
+      throw new Error(message);
     } finally {
-      // A stale request must not turn off a newer account's loading indicator.
+      if (timeoutId !== undefined) {
+        clearTimeout(timeoutId);
+      }
+
+      // Only the current request should control the loading indicator.
       if (
         requestId === requestIdRef.current &&
         activeUserIdRef.current === operationUserId
@@ -505,6 +573,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
     }
   }, []);
+
 
   const createTask = useCallback(async (title: string) => {
     const cleanTitle = title.trim();
@@ -624,23 +693,44 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const addFocusSession = useCallback(
-    async (durationMinutes: number) => {
+    async (durationMinutes: number, clientSessionId: string) => {
       await runDataOperation(async () => {
-        if (!Number.isFinite(durationMinutes) || durationMinutes <= 0) {
+        if (
+          !Number.isFinite(durationMinutes) ||
+          durationMinutes <= 0
+        ) {
           throw new Error('Focus duration must be greater than zero.');
         }
-        // Keep the rest of your existing addFocusSession
-        // Supabase insert and dispatch logic here.
+
+        if (!clientSessionId) {
+          throw new Error('A focus session ID is required.');
+        }
+
         const user = await getRequiredUser();
+
         const { data, error } = await supabase
           .from('focus_sessions')
-          .insert({ user_id: user.id, duration_minutes: durationMinutes })
+          .upsert(
+            {
+              user_id: user.id,
+              client_session_id: clientSessionId,
+              duration_minutes: durationMinutes,
+            },
+            {
+              onConflict: 'user_id,client_session_id',
+            }
+          )
           .select('id, duration_minutes, completed_at')
           .single();
+
         if (error) throw error;
+
         if (activeUserIdRef.current !== user.id) {
-          throw new Error('Your account changed while saving the focus session.');
+          throw new Error(
+            'Your account changed while saving the focus session.'
+          );
         }
+
         dispatch({
           type: 'ADD_FOCUS_SESSION',
           payload: mapFocusSession(data as FocusSessionRow),
@@ -738,21 +828,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [refreshAllData]);
 
-  if (!isHydrated) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          justifyContent: 'center',
-          alignItems: 'center',
-          backgroundColor: '#F9FBFF',
-        }}
-      >
-        <ActivityIndicator size="large" />
-      </View>
-    );
-  }
-
   return (
     <AppContext.Provider
       value={{
@@ -774,7 +849,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
         clearAllData,
       }}
     >
-      {children}
+      <View style={{ flex: 1 }}>
+        {children}
+
+        {!isHydrated && (
+          <View
+            style={{
+              position: 'absolute',
+              top: 0,
+              right: 0,
+              bottom: 0,
+              left: 0,
+              justifyContent: 'center',
+              alignItems: 'center',
+              backgroundColor: '#F9FBFF',
+              zIndex: 9999,
+            }}
+          >
+            <ActivityIndicator size="large" />
+          </View>
+        )}
+      </View>
     </AppContext.Provider>
   );
 }

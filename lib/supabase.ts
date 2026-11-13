@@ -1,4 +1,3 @@
-// lib/supabase.ts
 import 'react-native-url-polyfill/auto';
 
 import AsyncStorage from

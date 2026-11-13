@@ -1,8 +1,8 @@
-
 import React, { useEffect, useState } from 'react';
 
 import {
   ActivityIndicator,
+  Platform,
   View,
 } from 'react-native';
 
@@ -17,11 +17,42 @@ export default function IndexScreen() {
 
   const [loading, setLoading] = useState(true);
 
+  const [recoveryLink, setRecoveryLink] = useState(false);
+
   useEffect(() => {
     let mounted = true;
 
+    const checkRecoveryLink = () => {
+      if (typeof window === 'undefined') {
+        return false;
+      }
+
+      const url = new URL(window.location.href);
+
+      const code = url.searchParams.get('code');
+
+      const hashParams = new URLSearchParams(
+        url.hash.startsWith('#')
+          ? url.hash.slice(1)
+          : url.hash
+      );
+
+      const recoveryType = hashParams.get('type');
+
+      return (
+        !!code ||
+        recoveryType === 'recovery'
+      );
+    };
+
     const loadSession = async () => {
       try {
+        const isRecoveryLink = checkRecoveryLink();
+
+        if (mounted) {
+          setRecoveryLink(isRecoveryLink);
+        }
+
         const { data, error } =
           await supabase.auth.getSession();
 
@@ -54,13 +85,18 @@ export default function IndexScreen() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(
       (_event, nextSession) => {
+        console.log('[INDEX AUTH EVENT]', _event);
+        console.log(
+          '[INDEX SESSION]',
+          nextSession?.user?.id ?? 'No session'
+        );
         if (mounted) {
           setSession(nextSession);
           setLoading(false);
         }
       }
     );
-
+    console.log('[INDEX SCREEN] Rendered');
     return () => {
       mounted = false;
       subscription.unsubscribe();
@@ -81,6 +117,18 @@ export default function IndexScreen() {
     );
   }
 
+  // Recovery links must go to the password reset screen.
+  if (recoveryLink) {
+    return <Redirect href="/reset-password" />;
+  }
+  console.log('[INDEX REDIRECT]', {
+  hasSession: !!session,
+  destination: session ? '/(tabs)' : '/sign-in',
+  currentUrl:
+    Platform.OS === 'web'
+      ? window.location.href
+      : 'Native',
+  });
   return (
     <Redirect
       href={session ? '/(tabs)' : '/sign-in'}

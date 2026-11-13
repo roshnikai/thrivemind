@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 
 import {
@@ -9,18 +8,18 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Platform,
 } from 'react-native';
 
 import { supabase } from '../lib/supabase';
 
 export default function SignInScreen() {
-  const [mode, setMode] = useState<'signin' | 'signup'>(
-    'signin'
-  );
+  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
   const [message, setMessage] = useState('');
 
   const handleSubmit = async () => {
@@ -36,23 +35,20 @@ export default function SignInScreen() {
 
     try {
       if (mode === 'signin') {
-        const { error } =
-          await supabase.auth.signInWithPassword({
-            email: normalizedEmail,
-            password,
-          });
+        const { error } = await supabase.auth.signInWithPassword({
+          email: normalizedEmail,
+          password,
+        });
 
         if (error) throw error;
 
         setMessage('Signed in successfully!');
-        // The root layout will detect the new session
-        // and automatically display the employee app.
+        // The root layout detects the new session and displays the app.
       } else {
-        const { data, error } =
-          await supabase.auth.signUp({
-            email: normalizedEmail,
-            password,
-          });
+        const { data, error } = await supabase.auth.signUp({
+          email: normalizedEmail,
+          password,
+        });
 
         if (error) throw error;
 
@@ -60,8 +56,7 @@ export default function SignInScreen() {
           setMessage('Account created successfully!');
         } else {
           setMessage(
-            'Account created. Check your email to confirm ' +
-            'your account, then sign in here.'
+            'Account created. Check your email to confirm your account, then sign in here.'
           );
         }
       }
@@ -76,12 +71,52 @@ export default function SignInScreen() {
     }
   };
 
+  const handlePasswordReset = async () => {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!normalizedEmail) {
+      setMessage('Enter your email address first.');
+      return;
+    }
+
+    setResetLoading(true);
+    setMessage('');
+
+    try {
+      const redirectTo =
+        Platform.OS === 'web'
+          ? `${window.location.origin}/reset-password`
+          : 'thrivemind://reset-password';
+
+      const { error } = await supabase.auth.resetPasswordForEmail(
+        normalizedEmail,
+        { redirectTo }
+      );
+
+      if (error) throw error;
+
+      setMessage(
+        'If an account exists for this email, you will receive a password reset link. Check your inbox and spam folder.'
+      );
+    } catch (error) {
+      console.error('Password reset request failed:', error);
+
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : 'Unable to request a password reset. Please try again.'
+      );
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
   const switchMode = () => {
-    setMode((current) =>
-      current === 'signin' ? 'signup' : 'signin'
-    );
+    setMode((current) => (current === 'signin' ? 'signup' : 'signin'));
     setMessage('');
   };
+
+  const isBusy = loading || resetLoading;
 
   return (
     <ScrollView
@@ -107,6 +142,7 @@ export default function SignInScreen() {
           keyboardType="email-address"
           autoComplete="email"
           accessibilityLabel="Email address"
+          editable={!isBusy}
         />
 
         <Text style={styles.label}>Password</Text>
@@ -121,24 +157,38 @@ export default function SignInScreen() {
             mode === 'signin' ? 'current-password' : 'new-password'
           }
           accessibilityLabel="Password"
+          editable={!isBusy}
         />
+
+        {mode === 'signin' && (
+          <TouchableOpacity
+            onPress={handlePasswordReset}
+            style={styles.forgotButton}
+            disabled={isBusy}
+            accessibilityRole="button"
+          >
+            {resetLoading ? (
+              <ActivityIndicator color="#4C6EF5" />
+            ) : (
+              <Text style={styles.forgotText}>Forgot password?</Text>
+            )}
+          </TouchableOpacity>
+        )}
 
         <TouchableOpacity
           style={[
             styles.button,
-            loading && styles.disabledButton,
+            isBusy && styles.disabledButton,
           ]}
           onPress={handleSubmit}
-          disabled={loading}
+          disabled={isBusy}
           accessibilityRole="button"
         >
           {loading ? (
             <ActivityIndicator color="#FFFFFF" />
           ) : (
             <Text style={styles.buttonText}>
-              {mode === 'signin'
-                ? 'Sign In'
-                : 'Create Account'}
+              {mode === 'signin' ? 'Sign In' : 'Create Account'}
             </Text>
           )}
         </TouchableOpacity>
@@ -152,6 +202,8 @@ export default function SignInScreen() {
         <TouchableOpacity
           onPress={switchMode}
           style={styles.switchButton}
+          disabled={isBusy}
+          accessibilityRole="button"
         >
           <Text style={styles.switchText}>
             {mode === 'signin'
@@ -207,6 +259,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 18,
     backgroundColor: '#FFFFFF',
+  },
+  forgotButton: {
+    alignSelf: 'flex-end',
+    paddingVertical: 4,
+    paddingHorizontal: 2,
+    marginTop: -12,
+    marginBottom: 14,
+  },
+  forgotText: {
+    color: '#4C6EF5',
+    fontSize: 14,
+    fontWeight: '600',
   },
   button: {
     backgroundColor: '#4C6EF5',
